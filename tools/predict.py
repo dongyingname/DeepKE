@@ -4,20 +4,22 @@ import torch
 import logging
 import hydra
 from hydra import utils
-from deepke.tools import Serializer
-from deepke.tools import _serialize_sentence, _convert_tokens_into_index, _add_pos_seq, _handle_relation_data
+from DeepKE.tools import Serializer
+from DeepKE.tools import _serialize_sentence, _convert_tokens_into_index, \
+    _add_pos_seq, _handle_relation_data
 import matplotlib.pyplot as plt
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-from deepke.utils import load_pkl, load_csv
-import deepke.models as models
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+from DeepKE.utils import load_pkl, load_csv
+import DeepKE.models as models
 
 logger = logging.getLogger(__name__)
 
-
 def _preprocess_data(data, cfg):
-    vocab = load_pkl(os.path.join(cfg.cwd, cfg.out_path, 'vocab.pkl'), verbose=False)
-    relation_data = load_csv(os.path.join(cfg.cwd, cfg.data_path, 'relation.csv'), verbose=False)
+    vocab = load_pkl(os.path.join(cfg.cwd, cfg.out_path, 'vocab.pkl'),
+                     verbose=False)
+    relation_data = load_csv(
+        os.path.join(cfg.cwd, cfg.data_path, 'relation.csv'), verbose=False)
     rels = _handle_relation_data(relation_data)
     cfg.vocab_size = vocab.count
     serializer = Serializer(do_chinese_split=cfg.chinese_split)
@@ -27,11 +29,15 @@ def _preprocess_data(data, cfg):
     _convert_tokens_into_index(data, vocab)
     _add_pos_seq(data, cfg)
     logger.info('start sentence preprocess...')
-    formats = '\nsentence: {}\nchinese_split: {}\nreplace_entity_with_type:  {}\nreplace_entity_with_scope: {}\n' \
-              'tokens:    {}\ntoken2idx: {}\nlength:    {}\nhead_idx:  {}\ntail_idx:  {}'
+    formats = '\nsentence: {}\nchinese_split: {}\nreplace_entity_with_type:  ' \
+              '{}\nreplace_entity_with_scope: {}\n' \
+              'tokens:    {}\ntoken2idx: {}\nlength:    {}\nhead_idx:  {' \
+              '}\ntail_idx:  {}'
     logger.info(
-        formats.format(data[0]['sentence'], cfg.chinese_split, cfg.replace_entity_with_type,
-                       cfg.replace_entity_with_scope, data[0]['tokens'], data[0]['token2idx'], data[0]['seq_len'],
+        formats.format(data[0]['sentence'], cfg.chinese_split,
+                       cfg.replace_entity_with_type,
+                       cfg.replace_entity_with_scope, data[0]['tokens'],
+                       data[0]['token2idx'], data[0]['seq_len'],
                        data[0]['head_idx'], data[0]['tail_idx']))
     return data, rels
 
@@ -39,6 +45,11 @@ def _preprocess_data(data, cfg):
 def _get_predict_instance(cfg):
     flag = input('是否使用范例[y/n]，退出请输入: exit .... ')
     flag = flag.strip().lower()
+    sentence = ''
+    head = ''
+    tail = ''
+    head_type = ''
+    tail_type = ''
     if flag == 'y' or flag == 'yes':
         sentence = '《乡村爱情》是一部由知名导演赵本山在1985年所拍摄的农村青春偶像剧。'
         head = '乡村爱情'
@@ -72,16 +83,14 @@ def _get_predict_instance(cfg):
     return instance
 
 
-
-
 @hydra.main(config_path='../conf/config.yaml')
 def main(cfg):
     cwd = utils.get_original_cwd()
     cwd = cwd[0:-5]
     cfg.cwd = cwd
     cfg.pos_size = 2 * cfg.pos_limit + 2
+    print('printing pretty!')
     print(cfg.pretty())
-
     # get predict instance
     instance = _get_predict_instance(cfg)
     data = [instance]
@@ -115,18 +124,20 @@ def main(cfg):
     model.eval()
 
     x = dict()
-    x['word'], x['lens'] = torch.tensor([data[0]['token2idx']]), torch.tensor([data[0]['seq_len']])
-    
+    x['word'], x['lens'] = torch.tensor([data[0]['token2idx']]), torch.tensor(
+        [data[0]['seq_len']])
+
     if cfg.model_name != 'lm':
-        x['head_pos'], x['tail_pos'] = torch.tensor([data[0]['head_pos']]), torch.tensor([data[0]['tail_pos']])
+        x['head_pos'], x['tail_pos'] = torch.tensor(
+            [data[0]['head_pos']]), torch.tensor([data[0]['tail_pos']])
         if cfg.model_name == 'cnn':
             if cfg.use_pcnn:
                 x['pcnn_mask'] = torch.tensor([data[0]['entities_pos']])
         if cfg.model_name == 'gcn':
             # 没找到合适的做 parsing tree 的工具，暂时随机初始化
-            adj = torch.empty(1,data[0]['seq_len'],data[0]['seq_len']).random_(2)
+            adj = torch.empty(1, data[0]['seq_len'],
+                              data[0]['seq_len']).random_(2)
             x['adj'] = adj
-
 
     for key in x.keys():
         x[key] = x[key].to(device)
@@ -136,11 +147,14 @@ def main(cfg):
         y_pred = torch.softmax(y_pred, dim=-1)[0]
         prob = y_pred.max().item()
         prob_rel = list(rels.keys())[y_pred.argmax().item()]
-        logger.info(f"\"{data[0]['head']}\" 和 \"{data[0]['tail']}\" 在句中关系为：\"{prob_rel}\"，置信度为{prob:.2f}。")
+        logger.info(
+            f"\"{data[0]['head']}\" 和 \"{data[0]['tail']}\" 在句中关系为：\""
+            f"{prob_rel}\"，置信度为{prob:.2f}。")
 
     if cfg.predict_plot:
         # maplot 默认显示不支持中文
-        plt.rcParams["font.family"] = 'Arial Unicode MS'
+        # plt.rcParams["font.family"] = 'Arial Unicode MS'
+        plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
         x = list(rels.keys())
         height = list(y_pred.cpu().numpy())
         plt.bar(x, height)

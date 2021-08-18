@@ -14,4 +14,5 @@ defaults:
   - predict
   - model: cnn   # [cnn, rnn, transformer, capsule, gcn, lm]
 
+#  - model: rnn   # [cnn, rnn, transformer, capsule, gcn, lm]
 

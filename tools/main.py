@@ -10,12 +10,14 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 # self
 import sys
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-import deepke.models as models
-from deepke.tools import preprocess , CustomDataset, collate_fn ,train, validate
-from deepke.utils import manual_seed, load_pkl
+import DeepKE.models as models
+from DeepKE.tools import preprocess, CustomDataset, collate_fn, train, validate
+from DeepKE.utils import manual_seed, load_pkl
 
 logger = logging.getLogger(__name__)
+
 
 @hydra.main(config_path='../conf/config.yaml')
 def main(cfg):
@@ -61,20 +63,27 @@ def main(cfg):
     valid_dataset = CustomDataset(valid_data_path)
     test_dataset = CustomDataset(test_data_path)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, collate_fn=collate_fn(cfg))
-    valid_dataloader = DataLoader(valid_dataset, batch_size=cfg.batch_size, shuffle=True, collate_fn=collate_fn(cfg))
-    test_dataloader = DataLoader(test_dataset, batch_size=cfg.batch_size, shuffle=True, collate_fn=collate_fn(cfg))
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.batch_size,
+                                  shuffle=True, collate_fn=collate_fn(cfg))
+    valid_dataloader = DataLoader(valid_dataset, batch_size=cfg.batch_size,
+                                  shuffle=True, collate_fn=collate_fn(cfg))
+    test_dataloader = DataLoader(test_dataset, batch_size=cfg.batch_size,
+                                 shuffle=True, collate_fn=collate_fn(cfg))
 
     model = __Model__[cfg.model_name](cfg)
     model.to(device)
     logger.info(f'\n {model}')
 
-    optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate, weight_decay=cfg.weight_decay)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=cfg.lr_factor, patience=cfg.lr_patience)
+    optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate,
+                           weight_decay=cfg.weight_decay)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                     factor=cfg.lr_factor,
+                                                     patience=cfg.lr_patience)
     criterion = nn.CrossEntropyLoss()
 
     best_f1, best_epoch = -1, 0
-    es_loss, es_f1, es_epoch, es_patience, best_es_epoch, best_es_f1, es_path, best_es_path = 1e8, -1, 0, 0, 0, -1, '', ''
+    es_loss, es_f1, es_epoch, es_patience, best_es_epoch, best_es_f1, \
+    es_path, best_es_path = 1e8, -1, 0, 0, 0, -1, '', ''
     train_losses, valid_losses = [], []
 
     if cfg.show_plot and cfg.plot_utils == 'tensorboard':
@@ -86,8 +95,10 @@ def main(cfg):
 
     for epoch in range(1, cfg.epoch + 1):
         manual_seed(cfg.seed + epoch)
-        train_loss = train(epoch, model, train_dataloader, optimizer, criterion, device, writer, cfg)
-        valid_f1, valid_loss = validate(epoch, model, valid_dataloader, criterion, device, cfg)
+        train_loss = train(epoch, model, train_dataloader, optimizer, criterion,
+                           device, writer, cfg)
+        valid_f1, valid_loss = validate(epoch, model, valid_dataloader,
+                                        criterion, device, cfg)
         scheduler.step(valid_loss)
         model_path = model.save(epoch, cfg)
         # logger.info(model_path)
@@ -127,11 +138,13 @@ def main(cfg):
                 }, i)
             writer.close()
 
-    logger.info(f'best(valid loss quota) early stopping epoch: {best_es_epoch}, '
-                f'this epoch macro f1: {best_es_f1:0.4f}')
+    logger.info(
+        f'best(valid loss quota) early stopping epoch: {best_es_epoch}, '
+        f'this epoch macro f1: {best_es_f1:0.4f}')
     logger.info(f'this model save path: {best_es_path}')
-    logger.info(f'total {cfg.epoch} epochs, best(valid macro f1) epoch: {best_epoch}, '
-                f'this epoch macro f1: {best_f1:.4f}')
+    logger.info(
+        f'total {cfg.epoch} epochs, best(valid macro f1) epoch: {best_epoch}, '
+        f'this epoch macro f1: {best_f1:.4f}')
 
     logger.info('=====end of training====')
     logger.info('')
@@ -142,4 +155,3 @@ def main(cfg):
 
 if __name__ == '__main__':
     main()
-    

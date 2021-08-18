@@ -1,2 +1,4 @@
 # 自定义模型存储的路径
-fp = 'xxx/checkpoints/2019-12-03_17-35-30/cnn_epoch21.pth'
+fp: 'D:\YREC\知识图谱\知识图谱GitHub\deepke\DeepKE\checkpoints\2021-08-18_15-09-35\cnn_epoch100.pth'
+
+#fp: 'D:\YREC\知识图谱\知识图谱GitHub\deepke\DeepKE\checkpoints\2021-08-18_16-14-49\rnn_epoch30.pth'
